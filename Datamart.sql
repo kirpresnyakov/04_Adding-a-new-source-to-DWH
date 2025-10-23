@@ -204,8 +204,7 @@ dwh_update_delta AS (
             FROM dwh_delta
             WHERE exist_customer_id IS NULL        
 ),
-/*делаем расчёт витрины по новым данным. Этой информации по заказчикам в рамках расчётного периода раньше не было,
- это новые данные. Их можно просто вставить (insert) в витрину без обновления*/
+/*делаем расчёт витрины по новым данным */
 dwh_delta_insert_result AS ( 
     SELECT  
     	T4.customer_id AS customer_id,
@@ -226,17 +225,12 @@ dwh_delta_insert_result AS (
         T4.count_order_done AS count_order_done,
         T4.count_order_not_done AS count_order_not_done,
         T4.report_period AS report_period 
-        FROM (
-        /*в этой выборке объединяем две внутренние выборки по расчёту столбцов витрины и 
-        применяем оконную функцию для определения самой популярной категории товаров*/                      
+        FROM (                 
             SELECT 
             	*,
                 RANK() OVER(PARTITION BY T2.customer_id ORDER BY count_product DESC) AS rank_count_product,
                 RANK() OVER(PARTITION BY T2.customer_id ORDER BY craftsman_id DESC) AS rank_craftsman
                 FROM ( 
-                /*в этой выборке делаем расчёт по большинству столбцов, так как все они требуют одной и той же группировки, 
-                 * кроме столбца с самой популярной категорией товаров у Заказчика.
-                 * Для этого столбца сделаем отдельную выборку с другой группировкой и выполним JOIN*/
                      SELECT
                      	T1.customer_id AS customer_id,
                      	T1.customer_name AS customer_name,
@@ -281,8 +275,7 @@ dwh_delta_insert_result AS (
                 AND T4.rank_craftsman >=1
                 ORDER BY report_period -- условие помогает оставить в выборке первую по популярности категорию товаров
 ),
-/*-- делаем перерасчёт для существующих записей витринs, так как данные обновились за отчётные периоды.
- *  Логика похожа на insert, но нужно достать конкретные данные из DWH*/
+/*делаем перерасчёт для существующих записей витринs, так как данные обновились за отчётные периоды.*/
 dwh_delta_update_result AS ( 
     SELECT 
 	    T4.customer_id AS customer_id,
