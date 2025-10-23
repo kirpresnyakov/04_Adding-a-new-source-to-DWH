@@ -197,7 +197,7 @@ dwh_delta AS (
                           (dcs.load_dttm > (SELECT COALESCE(MAX(load_dttm),'1900-01-01') FROM dwh.load_dates_customer_report_datamart)) OR
                           (dp.load_dttm > (SELECT COALESCE(MAX(load_dttm),'1900-01-01') FROM dwh.load_dates_customer_report_datamart))
 ),
-/*делаем выборку заказчиков, по которым были изменения в DWH, для обнорвления в витрине!! Прверить!!*/
+/*делаем выборку заказчиков, по которым были изменения в DWH, для обнорвления в витрине */
 dwh_update_delta AS ( 
     SELECT     
             customer_id
