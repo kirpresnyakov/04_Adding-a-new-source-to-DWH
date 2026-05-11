@@ -1,5 +1,4 @@
 --========Создание витрины========
-
 --1. Создание таблицы customer_report_datamart:
 
 DROP TABLE IF EXISTS dwh.customer_report_datamart;
@@ -37,8 +36,7 @@ CREATE TABLE IF NOT EXISTS dwh.load_dates_customer_report_datamart (
 );
 
 --3. Инкрементальная загрузка данных:
-
-/*определяем, какие данные были изменены в витрине или добавлены в DWH. Формируем дельту изменений*/
+--определяем, какие данные были изменены в витрине или добавлены в DWH. Формируем дельту изменений
 WITH
 dwh_delta AS ( 
     SELECT     
@@ -69,14 +67,14 @@ dwh_delta AS (
                           (dcs.load_dttm > (SELECT COALESCE(MAX(load_dttm),'1900-01-01') FROM dwh.load_dates_customer_report_datamart)) OR
                           (dp.load_dttm > (SELECT COALESCE(MAX(load_dttm),'1900-01-01') FROM dwh.load_dates_customer_report_datamart))
 ),
-/*делаем выборку заказчиков, по которым были изменения в DWH, для обнорвления в витрине */
+--делаем выборку заказчиков, по которым были изменения в DWH, для обнорвления в витрине
 dwh_update_delta AS ( 
     SELECT     
             customer_id
             FROM dwh_delta
             WHERE exist_customer_id IS NULL        
 ),
-/*делаем расчёт витрины по новым данным */
+--делаем расчёт витрины по новым данным
 dwh_delta_insert_result AS ( 
     SELECT  
     	T4.customer_id AS customer_id,
@@ -125,7 +123,7 @@ dwh_delta_insert_result AS (
                         GROUP BY T1.customer_id, T1.customer_name, T1.customer_address, T1.customer_birthday, T1.customer_email, T1.report_period
                             ) AS T2 
                             INNER JOIN (
-                            /*Эта выборка поможет определить самый популярный товар у Заказчика.*/
+                            --определяем самый популярный товар у Заказчика
                             	SELECT 
                                 	dd.customer_id AS customer_id_for_product_type, 
                                     dd.product_type, 
@@ -134,7 +132,7 @@ dwh_delta_insert_result AS (
                                 GROUP BY dd.customer_id, dd.product_type
                                 ORDER BY count_product DESC) AS T3 ON T2.customer_id = T3.customer_id_for_product_type
                             INNER JOIN(
-                            /*выбираем популярного мастера*/
+                            --выбираем популярного мастера
 								SELECT 
 									customer_id AS customer_id_for_craftsman, 
 									craftsman_id, 
@@ -147,7 +145,7 @@ dwh_delta_insert_result AS (
                 AND T4.rank_craftsman >=1
                 ORDER BY report_period -- условие помогает оставить в выборке первую по популярности категорию товаров
 ),
-/*делаем перерасчёт для существующих записей витринs, так как данные обновились за отчётные периоды.*/
+--делаем перерасчёт для существующих записей витринs, так как данные обновились за отчётные периоды
 dwh_delta_update_result AS ( 
     SELECT 
 	    T4.customer_id AS customer_id,
@@ -169,7 +167,7 @@ dwh_delta_update_result AS (
 	    T4.count_order_not_done AS count_order_not_done,
 	    T4.report_period AS report_period 
 	    FROM (
-	    /*в этой выборке объединяем две внутренние выборки по расчёту столбцов витрины и применяем оконную функцию для определения самой популярной категории товаров*/
+	    --объединяем две внутренние выборки по расчёту столбцов витрины и применяем оконную функцию для определения самой популярной категории товаров
                 SELECT     
                 	*,
                     RANK() OVER(PARTITION BY T2.customer_id ORDER BY count_product DESC) AS rank_count_product,
@@ -193,7 +191,7 @@ dwh_delta_update_result AS (
 	                         SUM(CASE WHEN T1.order_status != 'done' THEN 1 ELSE 0 END) AS count_order_not_done,
                          T1.report_period AS report_period
                          FROM (
-                         /*в этой выборке достаём из DWH обновлённые или новые данные по Заказчикам, которые уже есть в витрине*/
+                         --в этой выборке достаём из DWH обновлённые или новые данные по Заказчикам, которые уже есть в витрине
                                SELECT     
 	                               fo.customer_id AS customer_id,
 	                               dcs.customer_name AS customer_name,
@@ -216,7 +214,7 @@ dwh_delta_update_result AS (
                                  GROUP BY T1.customer_id, T1.customer_name, T1.customer_address, T1.customer_birthday, T1.customer_email, T1.report_period
                           ) AS T2 
                            INNER JOIN (
-                           /*Эта выборка поможет определить самый популярный товар у Заказчика*/ 
+                           --определяем самый популярный товар у Заказчика
                                     SELECT     
 	                                    dd.customer_id AS customer_id_for_product_type, 
 	                                    dd.product_type, 
@@ -226,7 +224,7 @@ dwh_delta_update_result AS (
                                     ORDER BY count_product DESC) AS T3 
                             ON T2.customer_id = T3.customer_id_for_product_type
                            INNER JOIN(
-                            /*выбираем популярного мастера*/
+                            --выбираем популярного мастера
 								SELECT 
 									customer_id AS customer_id_for_craftsman, 
 									craftsman_id, 
@@ -239,7 +237,7 @@ dwh_delta_update_result AS (
                 AND T4.rank_craftsman >=1
                 ORDER BY report_period
 ),
-/*выполняем insert новых расчитанных данных для витрины */
+--выполняем insert новых расчитанных данных для витрины
 insert_delta AS ( 
     INSERT INTO dwh.customer_report_datamart (
         customer_id,
@@ -281,7 +279,7 @@ insert_delta AS (
 	      report_period
       FROM dwh_delta_insert_result
 ),
-/*выполняем обновление показателей в отчёте по уже существующим Заказчикам*/
+--выполняем обновление показателей в отчёте по уже существующим Заказчикам
 update_delta AS ( 
     UPDATE dwh.customer_report_datamart SET
         customer_name = updates.customer_name, 
@@ -324,7 +322,7 @@ update_delta AS (
 	        FROM dwh_delta_update_result) AS updates
     WHERE dwh. customer_report_datamart. customer_id = updates.customer_id
 ),
-/*делаем запись в таблицу загрузок о том, когда была совершена загрузка, чтобы в следующий раз взять данные, которые будут добавлены или изменены после этой даты*/
+--делаем запись в таблицу загрузок о том, когда была совершена загрузка, чтобы в следующий раз взять данные, которые будут добавлены или изменены после этой даты
 insert_load_date AS (
     INSERT INTO dwh.load_dates_customer_report_datamart (
         load_dttm
