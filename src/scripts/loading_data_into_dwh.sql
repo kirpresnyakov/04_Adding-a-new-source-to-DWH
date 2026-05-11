@@ -1,6 +1,6 @@
 --==========Загрузка данных в DWH==========
 --1. Создание временныхтаблиц для данных из источника external_source:
-/*Создание временной таблицы для измерений*/
+--Создание временной таблицы для измерений
 DROP TABLE IF EXISTS tmp_esm;
 
 CREATE TEMP TABLE tmp_es AS 
@@ -27,7 +27,7 @@ CREATE TEMP TABLE tmp_es AS
 	FROM external_source.craft_products_orders AS cpo
 	INNER JOIN external_source.customers  AS c ON c.customer_id = cpo.customer_id;
 
-/*Создание временной таблицы для фактов*/
+--Создание временной таблицы для фактов
 
 DROP TABLE IF EXISTS tmp_esf;
 
@@ -43,7 +43,7 @@ CREATE TEMP TABLE tmp_esf AS
 	FROM external_source.craft_products_orders; 
 
 --2. Обновление таблиц измерений в DWH:
-/*добавление новых записей в dwh.d_craftsmans*/
+--добавление новых записей в dwh.d_craftsmans
 MERGE INTO dwh.d_craftsman AS d
 USING (SELECT DISTINCT craftsman_name, craftsman_address, craftsman_birthday, craftsman_email FROM tmp_esm) AS t
 ON d.craftsman_name = t.craftsman_name AND d.craftsman_email = t.craftsman_email
@@ -53,7 +53,7 @@ WHEN NOT MATCHED THEN
   INSERT (craftsman_name, craftsman_address, craftsman_birthday, craftsman_email, load_dttm)
   VALUES (t.craftsman_name, t.craftsman_address, t.craftsman_birthday, t.craftsman_email, current_timestamp);
 
-/*добавление новых записей в dwh.d_products */
+--добавление новых записей в dwh.d_products
 MERGE INTO dwh.d_product AS d
 USING (SELECT DISTINCT product_name, product_description, product_type, product_price from tmp_esm) AS t
 ON d.product_name = t.product_name AND d.product_description = t.product_description AND d.product_price = t.product_price
@@ -63,7 +63,7 @@ WHEN NOT MATCHED THEN
   INSERT (product_name, product_description, product_type, product_price, load_dttm)
   VALUES (t.product_name, t.product_description, t.product_type, t.product_price, current_timestamp);
 
-/* добавление новых записей в dwh.d_customer */
+--добавление новых записей в dwh.d_customer
 MERGE INTO dwh.d_customer AS d
 USING (SELECT DISTINCT customer_name, customer_address, customer_birthday, customer_email from tmp_esm) AS t
 ON d.customer_name = t.customer_name AND d.customer_email = t.customer_email
@@ -73,7 +73,7 @@ WHEN NOT MATCHED THEN
   INSERT (customer_name, customer_address, customer_birthday, customer_email, load_dttm)
   VALUES (t.customer_name, t.customer_address, t.customer_birthday, t.customer_email, current_timestamp);
 
---3/*добавление новых записей в dwh.f_order*/
+--3.Добавление новых записей в dwh.f_order
 MERGE INTO dwh.f_order AS f
 USING tmp_sources_fact AS t
 ON f.product_id = t.product_id 
